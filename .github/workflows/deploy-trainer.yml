@@ -1,0 +1,38 @@
+name: Deploy Trainer
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: trainer-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check Trainer scripts
+        run: |
+          node - <<'JS'
+          const fs=require('fs');const html=fs.readFileSync('index.html','utf8');for(const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi))new Function(match[1]);JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));new Function(fs.readFileSync('sw.js','utf8'));console.log('Trainer scripts and manifest parse successfully');
+          JS
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Package Trainer
+        run: |
+          mkdir public
+          cp index.html manifest.webmanifest sw.js icon.svg public/
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
